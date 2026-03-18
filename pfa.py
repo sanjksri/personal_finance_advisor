@@ -8,15 +8,38 @@ import tempfile
 
 st.set_page_config(page_title="Advanced Finance Advisor", page_icon="💰")
 
-st.title("💰 Advanced Personal Finance Advisor")
+# ---------------- STYLE ---------------- #
+st.markdown("""
+<style>
+.big-title {
+    font-size:34px;
+    font-weight:700;
+    color:#1B5E20;
+}
+.card {
+    background-color:#f1f8e9;
+    padding:15px;
+    border-radius:12px;
+    margin-bottom:12px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- TITLE ---------------- #
+st.markdown('<div class="big-title">💰 Advanced Personal Finance Advisor</div>', unsafe_allow_html=True)
 
 # ---------------- INPUTS ---------------- #
 age = st.slider("Age", 18, 60, 30)
 salary = st.number_input("Annual Salary (₹)", value=1000000)
-monthly_expense = st.slider("Monthly Expense (₹)", 10000, 200000, int(salary*0.4/12))
+
+monthly_expense = st.slider(
+    "Monthly Expense (₹)",
+    10000, 200000, int(salary * 0.4 / 12)
+)
+
 debt_percent = st.slider("Debt Allocation (%)", 0, 80, 30)
 
-# Goals
+# ---------------- GOALS ---------------- #
 st.subheader("🎯 Goals")
 education_goal = st.number_input("Child Education Goal (₹)", value=2000000)
 house_goal = st.number_input("House Goal (₹)", value=5000000)
@@ -26,11 +49,24 @@ def insurance_needed(salary):
     return salary * 15
 
 def premium_by_company(age, cover):
-    return {
-        "ICICI": cover * (0.00012 if age < 30 else 0.00018),
-        "SBI": cover * (0.00013 if age < 30 else 0.00020),
-        "LIC": cover * (0.00016 if age < 30 else 0.00025),
-    }
+    if age < 30:
+        return {
+            "ICICI": cover * 0.00012,
+            "SBI": cover * 0.00013,
+            "LIC": cover * 0.00016,
+        }
+    elif age < 40:
+        return {
+            "ICICI": cover * 0.00018,
+            "SBI": cover * 0.00020,
+            "LIC": cover * 0.00025,
+        }
+    else:
+        return {
+            "ICICI": cover * 0.00030,
+            "SBI": cover * 0.00035,
+            "LIC": cover * 0.00040,
+        }
 
 cover = insurance_needed(salary)
 premiums = premium_by_company(age, cover)
@@ -45,37 +81,52 @@ equity = monthly_surplus - debt
 years = 60 - age
 months = years * 12
 
-# returns
+# Returns
 equity_r = 0.12 / 12
 debt_r = 0.07 / 12
 inflation = 0.06
 
 def future_value(pmt, r, n):
+    if r == 0:
+        return pmt * n
     return pmt * (((1+r)**n - 1)/r)
 
 equity_fv = future_value(equity, equity_r, months)
 debt_fv = future_value(debt, debt_r, months)
 total_fv = equity_fv + debt_fv
 
-# Inflation adjusted
+# Inflation-adjusted
 real_value = total_fv / ((1 + inflation) ** years)
 
 # ---------------- OUTPUT ---------------- #
-st.subheader("📊 Summary")
+st.subheader("📊 Financial Summary")
 
-st.write(f"**Insurance Cover:** ₹{cover:,.0f}")
+st.markdown(f'<div class="card">💰 <b>Monthly Surplus:</b> ₹{monthly_surplus:,.0f}</div>', unsafe_allow_html=True)
 
-st.write("### 🛡️ Insurance Comparison")
-df_ins = pd.DataFrame(premiums.items(), columns=["Company", "Annual Premium"])
+# ---------------- INSURANCE ---------------- #
+st.write(f"### 🛡️ Insurance Cover: ₹{cover:,.0f}")
+
+df_ins = pd.DataFrame([
+    {
+        "Company": k,
+        "Annual Premium (₹)": round(v, 0),
+        "Monthly Premium (₹)": round(v / 12, 0)
+    }
+    for k, v in premiums.items()
+])
+
+st.subheader("🛡️ Insurance Comparison")
 st.dataframe(df_ins)
 
-st.write(f"**Monthly Surplus:** ₹{monthly_surplus:,.0f}")
-st.write(f"**Equity Investment:** ₹{equity:,.0f}")
-st.write(f"**Debt Investment:** ₹{debt:,.0f}")
+# ---------------- INVESTMENT ---------------- #
+st.markdown(f'<div class="card">📈 Equity SIP: ₹{equity:,.0f}/month</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="card">🏦 Debt Investment: ₹{debt:,.0f}/month</div>', unsafe_allow_html=True)
 
-st.write("### 💰 Corpus")
-st.write(f"Nominal Corpus: ₹{total_fv:,.0f}")
-st.write(f"Inflation Adjusted Corpus: ₹{real_value:,.0f}")
+# ---------------- CORPUS ---------------- #
+st.subheader("💰 Wealth Projection")
+
+st.markdown(f'<div class="card">Nominal Corpus: ₹{total_fv:,.0f}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="card">Inflation Adjusted Corpus: ₹{real_value:,.0f}</div>', unsafe_allow_html=True)
 
 # ---------------- GRAPH ---------------- #
 st.subheader("📈 Wealth Growth Curve")
@@ -94,10 +145,11 @@ st.line_chart(df.set_index("Year"))
 # ---------------- GOAL CHECK ---------------- #
 st.subheader("🎯 Goal Analysis")
 
-st.write(f"Education Goal: ₹{education_goal:,.0f}")
-st.write(f"House Goal: ₹{house_goal:,.0f}")
+total_goal = education_goal + house_goal
 
-if total_fv > (education_goal + house_goal):
+st.write(f"Total Goals: ₹{total_goal:,.0f}")
+
+if total_fv > total_goal:
     st.success("✅ You are on track for your goals")
 else:
     st.warning("⚠️ You may fall short. Increase SIP or reduce expenses.")
@@ -118,22 +170,22 @@ if st.button("📄 Export PDF Report"):
     Age: {age}
     Salary: {salary}
 
+    Monthly Investment: {monthly_surplus:,.0f}
+
     Corpus: {total_fv:,.0f}
     Inflation Adjusted: {real_value:,.0f}
-
-    Equity: {equity:,.0f}
-    Debt: {debt:,.0f}
     """
 
     pdf_file = generate_pdf(text)
 
     with open(pdf_file, "rb") as f:
-        st.download_button("Download PDF", f, file_name="report.pdf")
+        st.download_button("Download PDF", f, file_name="financial_report.pdf")
 
 # ---------------- COUNTER ---------------- #
 if "visits" not in st.session_state:
     st.session_state.visits = 0
 
 st.session_state.visits += 1
+
 st.markdown("---")
 st.write(f"👥 Visitors: {st.session_state.visits}")
