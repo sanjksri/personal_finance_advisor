@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import streamlit as st
-import math
 
 st.set_page_config(page_title="Personal Finance Advisor", page_icon="💰", layout="centered")
 
@@ -8,31 +7,48 @@ st.set_page_config(page_title="Personal Finance Advisor", page_icon="💰", layo
 st.markdown("""
 <style>
 .big-title {
-    font-size:32px;
+    font-size:34px;
     font-weight:700;
-    color:#2E7D32;
+    color:#1B5E20;
 }
 .card {
-    background-color:#f5f5f5;
+    background-color:#f1f8e9;
     padding:15px;
     border-radius:12px;
-    margin-bottom:10px;
+    margin-bottom:12px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- TITLE ---------------- #
 st.markdown('<div class="big-title">💰 Personal Finance Advisor</div>', unsafe_allow_html=True)
-st.write("Get personalized financial guidance based on your profile.")
+st.write("Smart financial planning based on your lifestyle and risk profile.")
 
 # ---------------- INPUTS ---------------- #
-age = st.slider("Age", 18, 70, 30)
+age = st.slider("Age", 18, 60, 30)
 gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 marital = st.selectbox("Marital Status", ["Single", "Married"])
-salary = st.number_input("Annual Salary (₹)", min_value=100000, step=50000)
+salary = st.number_input("Annual Salary (₹)", min_value=200000, step=50000, value=1000000)
+
+# ----------- NEW SLIDERS (MARKET STANDARD DEFAULTS) ----------- #
+
+monthly_expense = st.slider(
+    "Average Monthly Expense (₹)",
+    10000, 200000, int(salary * 0.4 / 12)
+)
+
+debt_percent = st.slider(
+    "Debt Allocation (%)",
+    0, 80, 30  # market typical ~20–40%
+)
+
+insurance_rate = st.slider(
+    "Term Insurance Premium (% of Cover per year)",
+    0.5, 2.0, 1.0, step=0.1
+)
 
 # ---------------- LOGIC ---------------- #
-def get_risk_profile(age, marital):
+def get_risk_profile(age):
     if age < 30:
         return "High"
     elif age < 45:
@@ -44,63 +60,86 @@ def insurance_needed(salary, marital):
     multiplier = 15 if marital == "Married" else 10
     return salary * multiplier
 
-def allocation(age):
-    equity = max(100 - age, 20)  # thumb rule
-    debt = 100 - equity
-    return equity, debt
-
 # ---------------- BUTTON ---------------- #
-if st.button("Generate Plan"):
+if st.button("Generate Financial Plan"):
 
-    risk = get_risk_profile(age, marital)
-    insurance = insurance_needed(salary, marital)
-    equity, debt = allocation(age)
+    risk = get_risk_profile(age)
+    insurance_cover = insurance_needed(salary, marital)
 
-    monthly_sip = round((salary * equity/100) / 12 * 0.3, 0)  # 30% investable assumption
+    # Insurance premium
+    insurance_premium = insurance_cover * (insurance_rate / 100)
+
+    # Monthly investment capacity
+    monthly_income = salary / 12
+    monthly_surplus = monthly_income - monthly_expense - (insurance_premium / 12)
+
+    monthly_surplus = max(monthly_surplus, 0)
+
+    # Allocation
+    debt_invest = monthly_surplus * (debt_percent / 100)
+    equity_invest = monthly_surplus - debt_invest
+
+    # Future value assumptions
+    years = 60 - age
+    months = years * 12
+
+    # Returns
+    equity_r = 0.12 / 12
+    debt_r = 0.07 / 12
+
+    # Future value calculation
+    def future_value(pmt, r, n):
+        if r == 0:
+            return pmt * n
+        return pmt * (((1 + r) ** n - 1) / r)
+
+    equity_fv = future_value(equity_invest, equity_r, months)
+    debt_fv = future_value(debt_invest, debt_r, months)
+
+    total_fv = equity_fv + debt_fv
 
     # ---------------- OUTPUT ---------------- #
     st.markdown("### 📊 Your Financial Plan")
 
     st.markdown(f'<div class="card">🔹 <b>Risk Profile:</b> {risk}</div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="card">🛡️ <b>Recommended Life Insurance:</b> ₹{insurance:,.0f}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card">🛡️ <b>Recommended Insurance Cover:</b> ₹{insurance_cover:,.0f}<br>'
+                f'Annual Premium ≈ ₹{insurance_premium:,.0f}</div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="card">💳 <b>Debt Allocation:</b> {debt}% of investments</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card">💸 <b>Monthly Surplus Available for Investment:</b> ₹{monthly_surplus:,.0f}</div>',
+                unsafe_allow_html=True)
 
+    st.markdown(f'<div class="card">💳 <b>Debt Investment:</b> ₹{debt_invest:,.0f}/month</div>',
+                unsafe_allow_html=True)
+
+    st.markdown(f'<div class="card">📈 <b>Equity SIP Investment:</b> ₹{equity_invest:,.0f}/month</div>',
+                unsafe_allow_html=True)
+
+    # Instruments
     st.markdown("### 🏦 Suggested Debt Instruments")
     st.markdown("""
-- **PPF** (Safe, tax-free): https://www.nsiindia.gov.in  
-- **EPF/VPF**: https://www.epfindia.gov.in  
-- **Debt Mutual Funds**: https://www.amfiindia.com  
-- **RBI Bonds**: https://rbiretaildirect.org.in  
+- PPF – https://www.nsiindia.gov.in  
+- RBI Bonds – https://rbiretaildirect.org.in  
+- Debt Mutual Funds – https://www.amfiindia.com  
 """)
 
-    st.markdown(f'<div class="card">📈 <b>Equity (SIP Allocation):</b> {equity}%</div>', unsafe_allow_html=True)
-
-    st.markdown(f'<div class="card">💰 <b>Suggested Monthly SIP:</b> ₹{monthly_sip:,.0f}</div>', unsafe_allow_html=True)
-
-    st.markdown("### 📊 Suggested SIP Types")
+    st.markdown("### 📊 Suggested SIP Options")
     st.markdown("""
-- **Index Funds (Nifty 50 / Sensex)** – Low cost, stable  
-  https://groww.in/mutual-funds/category/index-funds  
-
-- **Large Cap Funds** – Lower volatility  
-  https://www.valueresearchonline.com  
-
-- **Flexi Cap Funds** – Balanced growth  
-  https://www.moneycontrol.com/mutual-funds/  
-
-- **ELSS (Tax Saving)** – Section 80C benefit  
-  https://cleartax.in/s/elss-funds  
+- Index Funds – https://groww.in/mutual-funds/category/index-funds  
+- Flexi Cap Funds – https://www.moneycontrol.com/mutual-funds/  
+- ELSS – https://cleartax.in/s/elss-funds  
 """)
 
-    # Future value calculation (12% return assumed)
-    years = max(60 - age, 10)
-    r = 0.12 / 12
-    n = years * 12
-    fv = monthly_sip * (((1 + r)**n - 1) / r)
+    st.markdown("### 📅 Wealth Projection")
 
-    st.markdown(f'<div class="card">📅 <b>Estimated Corpus by Age 60:</b> ₹{fv:,.0f}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="card">📈 <b>Equity Corpus (12% return):</b> ₹{equity_fv:,.0f}</div>',
+                unsafe_allow_html=True)
+
+    st.markdown(f'<div class="card">🏦 <b>Debt Corpus (7% return):</b> ₹{debt_fv:,.0f}</div>',
+                unsafe_allow_html=True)
+
+    st.markdown(f'<div class="card" style="background-color:#c8e6c9;">💰 <b>Total Corpus at 60:</b> ₹{total_fv:,.0f}</div>',
+                unsafe_allow_html=True)
 
 # ---------------- VISITOR COUNTER ---------------- #
 if "visits" not in st.session_state:
