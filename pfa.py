@@ -1,151 +1,139 @@
 #!/usr/bin/env python3
 import streamlit as st
+import pandas as pd
+import numpy as np
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+import tempfile
 
-st.set_page_config(page_title="Personal Finance Advisor", page_icon="💰", layout="centered")
+st.set_page_config(page_title="Advanced Finance Advisor", page_icon="💰")
 
-# ---------------- STYLE ---------------- #
-st.markdown("""
-<style>
-.big-title {
-    font-size:34px;
-    font-weight:700;
-    color:#1B5E20;
-}
-.card {
-    background-color:#f1f8e9;
-    padding:15px;
-    border-radius:12px;
-    margin-bottom:12px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- TITLE ---------------- #
-st.markdown('<div class="big-title">💰 Personal Finance Advisor</div>', unsafe_allow_html=True)
-st.write("Smart financial planning based on your lifestyle and risk profile.")
+st.title("💰 Advanced Personal Finance Advisor")
 
 # ---------------- INPUTS ---------------- #
 age = st.slider("Age", 18, 60, 30)
-gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-marital = st.selectbox("Marital Status", ["Single", "Married"])
-salary = st.number_input("Annual Salary (₹)", min_value=200000, step=50000, value=1000000)
+salary = st.number_input("Annual Salary (₹)", value=1000000)
+monthly_expense = st.slider("Monthly Expense (₹)", 10000, 200000, int(salary*0.4/12))
+debt_percent = st.slider("Debt Allocation (%)", 0, 80, 30)
 
-# ----------- NEW SLIDERS (MARKET STANDARD DEFAULTS) ----------- #
-
-monthly_expense = st.slider(
-    "Average Monthly Expense (₹)",
-    10000, 200000, int(salary * 0.4 / 12)
-)
-
-debt_percent = st.slider(
-    "Debt Allocation (%)",
-    0, 80, 30  # market typical ~20–40%
-)
-
-insurance_rate = st.slider(
-    "Term Insurance Premium (% of Cover per year)",
-    0.5, 2.0, 1.0, step=0.1
-)
+# Goals
+st.subheader("🎯 Goals")
+education_goal = st.number_input("Child Education Goal (₹)", value=2000000)
+house_goal = st.number_input("House Goal (₹)", value=5000000)
 
 # ---------------- LOGIC ---------------- #
-def get_risk_profile(age):
-    if age < 30:
-        return "High"
-    elif age < 45:
-        return "Moderate"
-    else:
-        return "Low"
+def insurance_needed(salary):
+    return salary * 15
 
-def insurance_needed(salary, marital):
-    multiplier = 15 if marital == "Married" else 10
-    return salary * multiplier
+def premium_by_company(age, cover):
+    return {
+        "ICICI": cover * (0.00012 if age < 30 else 0.00018),
+        "SBI": cover * (0.00013 if age < 30 else 0.00020),
+        "LIC": cover * (0.00016 if age < 30 else 0.00025),
+    }
 
-# ---------------- BUTTON ---------------- #
-if st.button("Generate Financial Plan"):
+cover = insurance_needed(salary)
+premiums = premium_by_company(age, cover)
 
-    risk = get_risk_profile(age)
-    insurance_cover = insurance_needed(salary, marital)
+monthly_income = salary / 12
+monthly_surplus = monthly_income - monthly_expense
+monthly_surplus = max(monthly_surplus, 0)
 
-    # Insurance premium
-    insurance_premium = insurance_cover * (insurance_rate / 100)
+debt = monthly_surplus * debt_percent / 100
+equity = monthly_surplus - debt
 
-    # Monthly investment capacity
-    monthly_income = salary / 12
-    monthly_surplus = monthly_income - monthly_expense - (insurance_premium / 12)
+years = 60 - age
+months = years * 12
 
-    monthly_surplus = max(monthly_surplus, 0)
+# returns
+equity_r = 0.12 / 12
+debt_r = 0.07 / 12
+inflation = 0.06
 
-    # Allocation
-    debt_invest = monthly_surplus * (debt_percent / 100)
-    equity_invest = monthly_surplus - debt_invest
+def future_value(pmt, r, n):
+    return pmt * (((1+r)**n - 1)/r)
 
-    # Future value assumptions
-    years = 60 - age
-    months = years * 12
+equity_fv = future_value(equity, equity_r, months)
+debt_fv = future_value(debt, debt_r, months)
+total_fv = equity_fv + debt_fv
 
-    # Returns
-    equity_r = 0.12 / 12
-    debt_r = 0.07 / 12
+# Inflation adjusted
+real_value = total_fv / ((1 + inflation) ** years)
 
-    # Future value calculation
-    def future_value(pmt, r, n):
-        if r == 0:
-            return pmt * n
-        return pmt * (((1 + r) ** n - 1) / r)
+# ---------------- OUTPUT ---------------- #
+st.subheader("📊 Summary")
 
-    equity_fv = future_value(equity_invest, equity_r, months)
-    debt_fv = future_value(debt_invest, debt_r, months)
+st.write(f"**Insurance Cover:** ₹{cover:,.0f}")
 
-    total_fv = equity_fv + debt_fv
+st.write("### 🛡️ Insurance Comparison")
+df_ins = pd.DataFrame(premiums.items(), columns=["Company", "Annual Premium"])
+st.dataframe(df_ins)
 
-    # ---------------- OUTPUT ---------------- #
-    st.markdown("### 📊 Your Financial Plan")
+st.write(f"**Monthly Surplus:** ₹{monthly_surplus:,.0f}")
+st.write(f"**Equity Investment:** ₹{equity:,.0f}")
+st.write(f"**Debt Investment:** ₹{debt:,.0f}")
 
-    st.markdown(f'<div class="card">🔹 <b>Risk Profile:</b> {risk}</div>', unsafe_allow_html=True)
+st.write("### 💰 Corpus")
+st.write(f"Nominal Corpus: ₹{total_fv:,.0f}")
+st.write(f"Inflation Adjusted Corpus: ₹{real_value:,.0f}")
 
-    st.markdown(f'<div class="card">🛡️ <b>Recommended Insurance Cover:</b> ₹{insurance_cover:,.0f}<br>'
-                f'Annual Premium ≈ ₹{insurance_premium:,.0f}</div>', unsafe_allow_html=True)
+# ---------------- GRAPH ---------------- #
+st.subheader("📈 Wealth Growth Curve")
 
-    st.markdown(f'<div class="card">💸 <b>Monthly Surplus Available for Investment:</b> ₹{monthly_surplus:,.0f}</div>',
-                unsafe_allow_html=True)
+years_list = list(range(years))
+values = []
 
-    st.markdown(f'<div class="card">💳 <b>Debt Investment:</b> ₹{debt_invest:,.0f}/month</div>',
-                unsafe_allow_html=True)
+for y in years_list:
+    m = y * 12
+    val = future_value(equity, equity_r, m) + future_value(debt, debt_r, m)
+    values.append(val)
 
-    st.markdown(f'<div class="card">📈 <b>Equity SIP Investment:</b> ₹{equity_invest:,.0f}/month</div>',
-                unsafe_allow_html=True)
+df = pd.DataFrame({"Year": years_list, "Wealth": values})
+st.line_chart(df.set_index("Year"))
 
-    # Instruments
-    st.markdown("### 🏦 Suggested Debt Instruments")
-    st.markdown("""
-- PPF – https://www.nsiindia.gov.in  
-- RBI Bonds – https://rbiretaildirect.org.in  
-- Debt Mutual Funds – https://www.amfiindia.com  
-""")
+# ---------------- GOAL CHECK ---------------- #
+st.subheader("🎯 Goal Analysis")
 
-    st.markdown("### 📊 Suggested SIP Options")
-    st.markdown("""
-- Index Funds – https://groww.in/mutual-funds/category/index-funds  
-- Flexi Cap Funds – https://www.moneycontrol.com/mutual-funds/  
-- ELSS – https://cleartax.in/s/elss-funds  
-""")
+st.write(f"Education Goal: ₹{education_goal:,.0f}")
+st.write(f"House Goal: ₹{house_goal:,.0f}")
 
-    st.markdown("### 📅 Wealth Projection")
+if total_fv > (education_goal + house_goal):
+    st.success("✅ You are on track for your goals")
+else:
+    st.warning("⚠️ You may fall short. Increase SIP or reduce expenses.")
 
-    st.markdown(f'<div class="card">📈 <b>Equity Corpus (12% return):</b> ₹{equity_fv:,.0f}</div>',
-                unsafe_allow_html=True)
+# ---------------- PDF EXPORT ---------------- #
+def generate_pdf(text):
+    file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    doc = SimpleDocTemplate(file.name)
+    styles = getSampleStyleSheet()
+    story = [Paragraph(text, styles["Normal"])]
+    doc.build(story)
+    return file.name
 
-    st.markdown(f'<div class="card">🏦 <b>Debt Corpus (7% return):</b> ₹{debt_fv:,.0f}</div>',
-                unsafe_allow_html=True)
+if st.button("📄 Export PDF Report"):
+    text = f"""
+    Financial Report
 
-    st.markdown(f'<div class="card" style="background-color:#c8e6c9;">💰 <b>Total Corpus at 60:</b> ₹{total_fv:,.0f}</div>',
-                unsafe_allow_html=True)
+    Age: {age}
+    Salary: {salary}
 
-# ---------------- VISITOR COUNTER ---------------- #
+    Corpus: {total_fv:,.0f}
+    Inflation Adjusted: {real_value:,.0f}
+
+    Equity: {equity:,.0f}
+    Debt: {debt:,.0f}
+    """
+
+    pdf_file = generate_pdf(text)
+
+    with open(pdf_file, "rb") as f:
+        st.download_button("Download PDF", f, file_name="report.pdf")
+
+# ---------------- COUNTER ---------------- #
 if "visits" not in st.session_state:
     st.session_state.visits = 0
 
 st.session_state.visits += 1
-
 st.markdown("---")
-st.markdown(f"👥 Visitors: {st.session_state.visits}")
+st.write(f"👥 Visitors: {st.session_state.visits}")
