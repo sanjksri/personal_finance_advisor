@@ -2,6 +2,8 @@
 import streamlit as st
 
 st.set_page_config(page_title="Personal Finance Advisor", page_icon="💰")
+st.markdown("Created by S K Srivastava, IFS")
+st.markdown("Legal Disclaimer: This is a simple tool created for helping a person manage his finances. There is absolutely no guarantee on the projected returns as they are governed by the market conditions")
 
 st.title("💰 Personal Finance Advisor")
 
