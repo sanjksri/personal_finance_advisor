@@ -120,6 +120,7 @@ corpus = future_value(equity_invest, r, months)
 st.subheader("💰 Retirement Projection")
 
 st.write(f"Estimated Corpus at 60: ₹{corpus:,.0f}")
+st.write(f"General advice: Take only term insurance, avoid hybrid funds like ULIP or Money back kind of products, Avoid trading in equities directly unless you understand markets properly. Prefer SIP route ")
 
 # ---------------- COUNTER ---------------- #
 if "visits" not in st.session_state:
