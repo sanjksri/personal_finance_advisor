@@ -101,7 +101,7 @@ Suggested High Performing Categories (last 1 year):
 
 Explore:
 - https://groww.in/mutual-funds  
-- https://www.moneycontrol.com/mutual-funds  
+- https://www.etmoney.com/mutual-funds/featured/best-sip-funds/18 
 """)
 
 # ---------------- PROJECTION ---------------- #
