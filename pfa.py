@@ -1,185 +1,123 @@
 #!/usr/bin/env python3
 import streamlit as st
-import pandas as pd
-import numpy as np
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-import tempfile
 
-st.set_page_config(page_title="Advanced Finance Advisor", page_icon="💰")
+st.set_page_config(page_title="Personal Finance Advisor", page_icon="💰")
 
-# ---------------- STYLE ---------------- #
-st.markdown("""
-<style>
-.big-title {
-    font-size:34px;
-    font-weight:700;
-    color:#1B5E20;
-}
-.card {
-    background-color:#f1f8e9;
-    padding:15px;
-    border-radius:12px;
-    margin-bottom:12px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- TITLE ---------------- #
-st.markdown('<div class="big-title">💰 Advanced Personal Finance Advisor</div>', unsafe_allow_html=True)
+st.title("💰 Personal Finance Advisor")
 
 # ---------------- INPUTS ---------------- #
 age = st.slider("Age", 18, 60, 30)
-salary = st.number_input("Annual Salary (₹)", value=1000000)
+
+marital = st.selectbox("Marital Status", ["Single", "Married"])
+smoker = st.selectbox("Smoking Status", ["Non-Smoker", "Smoker"])
+
+salary = st.number_input("Monthly Take Home Salary (₹)", value=80000)
 
 monthly_expense = st.slider(
-    "Monthly Expense (₹)",
-    10000, 200000, int(salary * 0.4 / 12)
+    "Monthly Expenses (₹)",
+    10000, 200000, int(salary * 0.4)
 )
 
+# ---------------- CALCULATIONS ---------------- #
+disposable_income = salary - monthly_expense
+disposable_income = max(disposable_income, 0)
+
+# Insurance suggestion
+def insurance_needed(monthly_income):
+    annual_income = monthly_income * 12
+    cover = annual_income * 15
+    return max(cover, 10000000)  # Minimum ₹1 Cr
+
+insurance_cover = insurance_needed(salary)
+
+insurance_slider = st.slider(
+    "Select Insurance Cover (₹)",
+    5000000, 50000000, insurance_cover, step=500000
+)
+
+# Premium adjustment
+def premium_estimate(age, smoker, cover):
+    base_rate = 0.00015
+    if age > 40:
+        base_rate += 0.0001
+    if smoker == "Smoker":
+        base_rate += 0.0001
+    return cover * base_rate
+
+premium = premium_estimate(age, smoker, insurance_slider)
+
+# ---------------- ALLOCATION ---------------- #
 debt_percent = st.slider("Debt Allocation (%)", 0, 80, 30)
 
-# ---------------- GOALS ---------------- #
-st.subheader("🎯 Goals")
-education_goal = st.number_input("Child Education Goal (₹)", value=2000000)
-house_goal = st.number_input("House Goal (₹)", value=5000000)
-
-# ---------------- LOGIC ---------------- #
-def insurance_needed(salary):
-    return salary * 15
-
-def premium_by_company(age, cover):
-    if age < 30:
-        return {
-            "ICICI": cover * 0.00012,
-            "SBI": cover * 0.00013,
-            "LIC": cover * 0.00016,
-        }
-    elif age < 40:
-        return {
-            "ICICI": cover * 0.00018,
-            "SBI": cover * 0.00020,
-            "LIC": cover * 0.00025,
-        }
-    else:
-        return {
-            "ICICI": cover * 0.00030,
-            "SBI": cover * 0.00035,
-            "LIC": cover * 0.00040,
-        }
-
-cover = insurance_needed(salary)
-premiums = premium_by_company(age, cover)
-
-monthly_income = salary / 12
-monthly_surplus = monthly_income - monthly_expense
-monthly_surplus = max(monthly_surplus, 0)
-
-debt = monthly_surplus * debt_percent / 100
-equity = monthly_surplus - debt
-
-years = 60 - age
-months = years * 12
-
-# Returns
-equity_r = 0.12 / 12
-debt_r = 0.07 / 12
-inflation = 0.06
-
-def future_value(pmt, r, n):
-    if r == 0:
-        return pmt * n
-    return pmt * (((1+r)**n - 1)/r)
-
-equity_fv = future_value(equity, equity_r, months)
-debt_fv = future_value(debt, debt_r, months)
-total_fv = equity_fv + debt_fv
-
-# Inflation-adjusted
-real_value = total_fv / ((1 + inflation) ** years)
+debt_invest = disposable_income * debt_percent / 100
+equity_invest = disposable_income - debt_invest
 
 # ---------------- OUTPUT ---------------- #
 st.subheader("📊 Financial Summary")
 
-st.markdown(f'<div class="card">💰 <b>Monthly Surplus:</b> ₹{monthly_surplus:,.0f}</div>', unsafe_allow_html=True)
+st.write(f"Disposable Income: ₹{disposable_income:,.0f}")
 
-# ---------------- INSURANCE ---------------- #
-st.write(f"### 🛡️ Insurance Cover: ₹{cover:,.0f}")
+st.markdown("### 🛡️ Insurance Recommendation")
+st.write(f"Suggested Cover: ₹{insurance_slider:,.0f}")
+st.write(f"Estimated Monthly Premium: ₹{premium/12:,.0f}")
+st.write(f"Estimated Annual Premium: ₹{premium:,.0f}")
 
-df_ins = pd.DataFrame([
-    {
-        "Company": k,
-        "Annual Premium (₹)": round(v, 0),
-        "Monthly Premium (₹)": round(v / 12, 0)
-    }
-    for k, v in premiums.items()
-])
+# ---------------- INSURANCE OPTIONS ---------------- #
+st.subheader("🏆 Top Term Insurance Plans (India)")
 
-st.subheader("🛡️ Insurance Comparison")
-st.dataframe(df_ins)
+st.markdown("""
+1. **LIC e-Term Plan**  
+   https://licindia.in  
 
-# ---------------- INVESTMENT ---------------- #
-st.markdown(f'<div class="card">📈 Equity SIP: ₹{equity:,.0f}/month</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="card">🏦 Debt Investment: ₹{debt:,.0f}/month</div>', unsafe_allow_html=True)
+2. **ICICI Prudential iProtect Smart**  
+   https://www.iciciprulife.com  
 
-# ---------------- CORPUS ---------------- #
-st.subheader("💰 Wealth Projection")
+3. **SBI Life Smart Shield**  
+   https://www.sbilife.co.in  
+""")
 
-st.markdown(f'<div class="card">Nominal Corpus: ₹{total_fv:,.0f}</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="card">Inflation Adjusted Corpus: ₹{real_value:,.0f}</div>', unsafe_allow_html=True)
+# ---------------- DEBT ---------------- #
+st.subheader("🏦 Debt Allocation")
 
-# ---------------- GRAPH ---------------- #
-st.subheader("📈 Wealth Growth Curve")
+st.write(f"Debt Investment: ₹{debt_invest:,.0f} per month")
 
-years_list = list(range(years))
-values = []
+st.markdown("""
+Suggested Instruments:
+- PPF – https://www.nsiindia.gov.in  
+- RBI Bonds – https://rbiretaildirect.org.in  
+- Debt Mutual Funds – https://www.amfiindia.com  
+""")
 
-for y in years_list:
-    m = y * 12
-    val = future_value(equity, equity_r, m) + future_value(debt, debt_r, m)
-    values.append(val)
+# ---------------- SIP ---------------- #
+st.subheader("📈 SIP Investment")
 
-df = pd.DataFrame({"Year": years_list, "Wealth": values})
-st.line_chart(df.set_index("Year"))
+st.write(f"SIP Investment: ₹{equity_invest:,.0f} per month")
 
-# ---------------- GOAL CHECK ---------------- #
-st.subheader("🎯 Goal Analysis")
+st.markdown("""
+Suggested High Performing Categories (last 1 year):
+- Index Funds (Nifty 50)
+- Flexi Cap Funds
+- Large & Midcap Funds
 
-total_goal = education_goal + house_goal
+Explore:
+- https://groww.in/mutual-funds  
+- https://www.moneycontrol.com/mutual-funds  
+""")
 
-st.write(f"Total Goals: ₹{total_goal:,.0f}")
+# ---------------- PROJECTION ---------------- #
+years = 60 - age
+months = years * 12
 
-if total_fv > total_goal:
-    st.success("✅ You are on track for your goals")
-else:
-    st.warning("⚠️ You may fall short. Increase SIP or reduce expenses.")
+r = 0.12 / 12
 
-# ---------------- PDF EXPORT ---------------- #
-def generate_pdf(text):
-    file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    doc = SimpleDocTemplate(file.name)
-    styles = getSampleStyleSheet()
-    story = [Paragraph(text, styles["Normal"])]
-    doc.build(story)
-    return file.name
+def future_value(pmt, r, n):
+    return pmt * (((1+r)**n - 1)/r)
 
-if st.button("📄 Export PDF Report"):
-    text = f"""
-    Financial Report
+corpus = future_value(equity_invest, r, months)
 
-    Age: {age}
-    Salary: {salary}
+st.subheader("💰 Retirement Projection")
 
-    Monthly Investment: {monthly_surplus:,.0f}
-
-    Corpus: {total_fv:,.0f}
-    Inflation Adjusted: {real_value:,.0f}
-    """
-
-    pdf_file = generate_pdf(text)
-
-    with open(pdf_file, "rb") as f:
-        st.download_button("Download PDF", f, file_name="financial_report.pdf")
+st.write(f"Estimated Corpus at 60: ₹{corpus:,.0f}")
 
 # ---------------- COUNTER ---------------- #
 if "visits" not in st.session_state:
