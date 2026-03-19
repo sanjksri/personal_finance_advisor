@@ -120,9 +120,10 @@ corpus = future_value(equity_invest, r, months)
 st.subheader("💰 Retirement Projection")
 
 st.write(f"Estimated Corpus at 60: ₹{corpus:,.0f}")
-st.markdown("General advice: 1) Take only term insurance, avoid hybrid insurance products like ULIP or Money back kind of products")
-st.markdown("              : 2) Avoid trading in equities directly unless you understand markets properly. Prefer SIP.")
-st.markdown("              : 3) Avoid any product with assured returns more than being offered by GPF. It could be risky")
+st.markdown("General advice:")
+st.markdown("1) Take only term insurance, avoid hybrid insurance products like ULIP or Money back kind of products")
+st.markdown("2) Avoid trading in equities directly unless you understand markets properly. Prefer SIP.")
+st.markdown("3) Avoid any product with assured returns more than being offered by GPF. It could be risky")
 
 # ---------------- COUNTER ---------------- #
 if "visits" not in st.session_state:
